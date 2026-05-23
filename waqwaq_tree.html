@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>瓦克瓦克树 · 3D 插画书</title>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+
+        :root {
+            --bg-color: #fcfaf2;
+            --text-color: #55534f;
+            --highlight-color: #8b9dc3;
+            --book-paper: #fff9ea;
+            --book-edge: #e9dcc3;
+            --book-shadow: rgba(46, 35, 22, 0.28);
+            --spine-dark: #b59a73;
+            --spine-light: #ead9b7;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Amiri', 'Traditional Arabic', serif;
+            background:
+                radial-gradient(circle at 50% 18%, rgba(255,255,255,0.95), rgba(252,250,242,0.78) 34%, rgba(218,198,163,0.45) 100%),
+                linear-gradient(135deg, #f6efe1, #d8c6a6);
+            color: var(--text-color);
+        }
+
+        /* 3D 打开书整体舞台：背景整张书页使用 background_1.png，动画/文字只叠加在左右页框内 */
+        .book-scene {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            padding: clamp(8px, 1.8vw, 26px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 2200px;
+            overflow: hidden;
+            background: #10100d;
+        }
+
+        .book {
+            position: relative;
+            width: 96vw;
+            max-width: min(1600px, calc(96vh * 16 / 9));
+            aspect-ratio: 16 / 9;
+            height: auto;
+            display: block;
+            transform-style: preserve-3d;
+            transform: rotateX(4deg) rotateZ(-0.25deg);
+            filter: drop-shadow(0 34px 32px rgba(0, 0, 0, 0.34));
+            background-image:
+                url('waq-assets/background_1.png'),
+                url('./background_1.png'),
+                url('waq-assets/waq_background_1.png'),
+                url('./waq_background_1.png'),
+                url('assets/background_1.png');
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .book::before {
+            content: "";
+            position: absolute;
+            left: 5%;
+            right: 5%;
+            bottom: -22px;
+            height: 52px;
+            border-radius: 50%;
+            background: radial-gradient(ellipse at center, rgba(20, 16, 11, 0.34), rgba(20, 16, 11, 0) 72%);
+            transform: translateZ(-80px);
+            pointer-events: none;
+        }
+
+        .page {
+            position: absolute;
+            overflow: hidden;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            transform-style: preserve-3d;
+            z-index: 5;
+        }
+
+        .page::before {
+            content: none;
+        }
+
+        /* 坐标对应 background_1.png 中已经画好的左右内页边框 */
+        .page-left {
+            left: 12.45%;
+            top: 11.75%;
+            width: 29.45%;
+            height: 75.90%;
+            border-radius: 0;
+            transform-origin: 100% 50%;
+            transform: translateZ(18px);
+        }
+
+        .page-right {
+            left: 57.00%;
+            top: 11.75%;
+            width: 29.80%;
+            height: 75.90%;
+            border-radius: 0;
+            transform-origin: 0 50%;
+            transform: translateZ(18px);
+        }
+
+        .book-spine {
+            position: absolute;
+            left: 49.35%;
+            top: 0;
+            width: 1.6%;
+            height: 100%;
+            z-index: 4;
+            background: transparent;
+            box-shadow: none;
+            transform: translateZ(10px);
+            pointer-events: none;
+        }
+
+        .page-inner {
+            position: absolute;
+            inset: 0;
+            border-radius: 0;
+        }
+
+        .animation-page {
+            overflow: hidden;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        .animation-page::after {
+            content: none;
+        }
+
+        .text-page {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: flex-start;
+            padding: clamp(18px, 2.2vw, 42px) clamp(16px, 2.4vw, 46px);
+            background: transparent;
+            box-shadow: none;
+        }
+
+        .page-kicker,
+        .page-footer {
+            display: none;
+        }
+
+        .page-kicker,
+        .page-footer {
+            flex: 0 0 auto;
+            font-family: sans-serif;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(80, 72, 58, 0.43);
+            user-select: none;
+        }
+
+        .page-kicker {
+            font-size: clamp(0.72rem, 1.1vw, 0.88rem);
+            margin-bottom: clamp(14px, 2vh, 26px);
+            text-align: center;
+        }
+
+        .page-footer {
+            font-size: 0.72rem;
+            margin-top: auto;
+            padding-top: 14px;
+            text-align: center;
+        }
+
+        /* 右页文字层 */
+        #text-container {
+            position: relative;
+            width: 100%;
+            max-width: none;
+            flex: 1 1 auto;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            text-align: center;
+            font-size: clamp(0.92rem, 1.28vw, 1.15rem);
+            line-height: 2.15;
+            /* ✅ 修改为适合羊皮纸的深棕色 */
+            color: #3b2b1a;
+            z-index: 10;
+            pointer-events: auto;
+            opacity: 0.95;
+            background: none;
+            padding: 0 clamp(4px, 1vw, 12px);
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        #text-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #text-container::-webkit-scrollbar-thumb {
+            border-radius: 999px;
+            background: rgba(130, 102, 67, 0.24);
+        }
+
+        .word {
+            display: inline-block;
+            transition: opacity 0.8s ease, transform 0.8s ease, color 0.4s ease, text-shadow 0.4s ease;
+            margin: 0 4px;
+            position: relative;
+            cursor: default;
+        }
+
+        .word.active {
+            color: var(--highlight-color);
+            text-shadow: 0 0 12px rgba(139, 157, 195, 0.5);
+            transform: scale(1.08); 
+        }
+
+        .word.absorbed {
+            opacity: 0 !important;
+            transform: translateY(20px); 
+        }
+
+        /* 左页动画画布 */
+        #canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            border-radius: 18px;
+            touch-action: none;
+        }
+
+        /* 启动遮罩 */
+        #overlay {
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(circle at 50% 35%, rgba(255,250,235,0.92), rgba(252,250,242,0.80) 45%, rgba(198,171,130,0.72) 100%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 2s ease;
+        }
+
+        #lang-select {
+            padding: 26px 30px;
+            border-radius: 26px;
+            background: rgba(255, 248, 231, 0.55);
+            box-shadow: 0 18px 45px rgba(63, 46, 26, 0.14);
+            backdrop-filter: blur(8px);
+        }
+
+        #lang-select button {
+            margin: 6px;
+            padding: 12px 30px;
+            font-size: 1rem;
+            background: transparent;
+            border: 1px solid var(--text-color);
+            color: var(--text-color);
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            font-family: sans-serif;
+            letter-spacing: 2px;
+        }
+
+        #lang-select button:hover {
+            background: var(--text-color);
+            color: var(--bg-color);
+            transform: translateY(-2px);
+        }
+
+        #hint {
+            margin-top: 24px;
+            font-size: 0.85rem;
+            color: #8b8275;
+            text-align: center;
+            font-family: sans-serif;
+            line-height: 1.6;
+        }
+
+        /* 结束层 */
+        #end-overlay{
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            color: #f5f5f5;
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            align-items:center;
+            z-index:999;
+        }
+
+        #end-text {
+            font-size: 1.4rem;
+            margin-bottom: 18px;
+        }
+
+        #end-options button{
+            margin:8px;
+            padding:10px 26px;
+            border-radius:30px;
+            border:1px solid #eee;
+            background: transparent;
+            color:#fff;
+            cursor:pointer;
+        }
+
+        #end-options button:hover{
+            background:#fff;
+            color:#333;
+        }
+
+        @media (max-width: 780px) {
+            .book-scene {
+                padding: 4px;
+            }
+
+            .book {
+                width: 99vw;
+                max-width: calc(99vh * 16 / 9);
+                transform: rotateX(2.5deg);
+            }
+
+            .text-page {
+                padding: 14px 12px;
+            }
+
+            #text-container {
+                font-size: 0.78rem;
+                line-height: 1.82;
+            }
+        }
+
+            .book {
+                width: 98vw;
+                height: 84vh;
+                grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr);
+                transform: rotateX(4deg);
+            }
+
+            .page-left {
+                transform: rotateY(5deg);
+            }
+
+            .page-right {
+                transform: rotateY(-5deg);
+            }
+
+            .text-page {
+                padding: 16px 11px;
+            }
+
+            #text-container {
+                font-size: 0.78rem;
+                line-height: 1.82;
+            }
+
+            .page-kicker,
+            .page-footer {
+                font-size: 0.58rem;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <main id="book-scene" class="book-scene">
+        <div class="book">
+            <section class="page page-left" aria-label="左侧动画页">
+                <div class="page-inner animation-page">
+                    <canvas id="canvas"></canvas>
+                </div>
+            </section>
+
+            <div class="book-spine" aria-hidden="true"></div>
+
+            <section class="page page-right" aria-label="右侧文字页">
+                <div class="page-inner text-page">
+                    <div class="page-kicker">Waqwaq Tree</div>
+                    <div id="text-container"></div>
+                    <div class="page-footer">右页 · 文字</div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="overlay">
+        <div id="lang-select">
+            <button data-lang="zh">中文</button>
+            <button data-lang="ar">العربية</button>
+            <button data-lang="en">English</button>
+        </div>
+        <div id="hint">请授予麦克风权限<br>缓慢朗读屏幕文字（也可点击推进）</div>
+    </div>
+
+    <div id="end-overlay" style="display:none;">
+        <div id="end-text">故事结束</div>
+        <div id="end-options"></div>
+    </div>
+
+    <audio id="rain-sound" src="天气 环境 风暴 小雨 大雷 隆隆声-隆隆声-雷裂纹-自然环_爱给网_aigei_com.mp3" loop preload="auto"></audio>
+    <audio id="bgm1" src="天堂中的鸟类(Birds in heaven)_爱给网_aigei_com.mp3" loop preload="auto"></audio>
+    <audio id="bgm2" src="musicword-lovely-spring-304672.mp3" loop preload="auto"></audio>
+
+    <script>
+        // ✅ 8阶段分段文本（与你给的三语完全对应）
+        let rawText = "";
+        let currentLang = "ar";
+        const STORY_SEGMENTS = {
+            ar: [
+                "وراءَ بحرِ المشرقِ جزيرةٌ عجيبة، رملُها دافئٌ، وتربتُها خصيبة.",
+                "تنبتُ فيها شجرةُ الواق واق، تمتدُّ جذورُها في الأعماق.",
+                "إذا جاءَ المطرُ، انشقَّ الثمرُ وأخرجَ برعمًا.",
+                "وإذا اشتدَّ القيظُ، ضربتْ جذورُها في التربةِ وصارتْ شجرةً.",
+                "أوراقُها كالأكُفِّ، وتاجُها كالمظلَّة.",
+                "على أغصانِها تنمو ثمارٌ كالبنات، شعورُهنَّ طوالٌ تتدلَّى.",
+                "فإذا هبَّتِ الريحُ، تمايلنَ وهتفنَ معًا: واق واق، واق واق.",
+                "وعندَما ينضجنَ ويسقطنَ على الأرض، ينهضنَ نساءً يمشينَ ويتكلَّمن،",
+                "بلا أمٍّ ولا أب، من الشجرةِ وُلِدن."
+            ],
+            zh: [
+                "东海之外有异岛，暖沙沃土，",
+                "生瓦克瓦克树。",
+                "雨至，实坼而芽出；",
+                "旱炽，根深而木成。",
+                "其叶如掌，其冠如盖。",
+                "枝结女实，长发垂垂，",
+                "风动则群呼曰：“瓦克瓦克。”",
+                "熟而坠，化为女子，能行能言，",
+                "无父无母，自树而生。"
+            ],
+            en: [
+                "Beyond the Eastern Sea, a wondrous island lies, with warm sands and fertile soil.",
+                "There grows the Waqwaq tree, its roots stretching deep into the earth.",
+                "When rain comes, the fruit splits and a sprout emerges.",
+                "When drought blazes, its roots grip the soil and it becomes a tree.",
+                "Its leaves are like palms, its crown like a canopy.",
+                "On its branches grow maiden fruits, their long hair trailing down.",
+                "When the wind blows, they sway and call together: Waqwaq, Waqwaq.",
+                "And when they ripen and fall to the ground, they rise as women, walking and speaking,",
+                "without mother or father, born from the tree."
+            ]
+        };
+        let stageIndex = []; // 保存每个阶段的起止下标
+        const UI_TEXTS = {
+            zh: { hint: "请授予麦克风权限<br>缓慢朗读屏幕文字（也可点击推进）" },
+            ar: { hint: "يرجى السماح بالميكروفون<br>اقرأ النص ببطء وهدوء (أو انقر للتقدم)" },
+            en: { hint: "Please allow microphone access<br>Read the text slowly (or click to advance)" }
+        };
+        const SPEECH_LANG = { zh:"zh-CN", ar:"ar-SA", en:"en-US" };
+        const FONT_MAP = {
+            zh: "'Noto Serif SC','SimSun',serif",
+            ar: "'Amiri','Traditional Arabic',serif",
+            en: "'Georgia','Times New Roman',serif"
+        };
+        
+        const textContainer = document.getElementById('text-container');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, groundY;
+        
+        // ✅ 语言体验记录
+        let experiencedLangs = new Set();
+        
+        // ✅ 鼠标坐标监听（2秒静止检测版）
+        let mouse = { x: 0, y: 0, active: false, lastMove: 0 };
+        
+        function updateMouse(e) { 
+            mouse.x = e.clientX; 
+            mouse.y = e.clientY; 
+            mouse.active = true; 
+            mouse.lastMove = Date.now();
+        }
+        
+        canvas.addEventListener('mousemove', updateMouse);
+        canvas.addEventListener('mouseenter', updateMouse);
+        canvas.addEventListener('mouseleave', () => mouse.active = false);
+        canvas.addEventListener('touchmove', (e) => { 
+            mouse.x = e.touches[0].clientX; 
+            mouse.y = e.touches[0].clientY; 
+            mouse.active = true; 
+            mouse.lastMove = Date.now();
+        });
+        canvas.addEventListener('touchend', () => mouse.active = false);
+        
+        // 保险
+        document.addEventListener('mouseout', (e) => { 
+            if (!e.relatedTarget && !e.toElement) mouse.active = false; 
+        });
+        
+        // ✅ 花朵+柠檬目标池（供蜜蜂采蜜）
+        let nectarTargets = [];
+        
+        // ✅ 结束动画变量（贝塞尔花瓣）
+        let ending = false;
+        let endFade = 0;
+        let endTimer = 0;
+        let overlayShown = false; // ✅ 新增：控制结束层只渲染一次
+        let treePoints = [];
+        let petals = [];
+        
+        // ✅ 音效控制
+        const rainSound = document.getElementById('rain-sound');
+        const bgm1 = document.getElementById('bgm1');
+        const bgm2 = document.getElementById('bgm2');
+        
+        let words = [];
+        let wordElements = [];
+        let currentWordIndex = 0;
+        let time = 0;
+        let animFrameId = null; // ✅ 用于记录并清理动画循环
+        
+        // ✅ 结束状态控制（已移除鼠标擦除互动）
+        let erasedNodes = new Set();
+        let interactiveEnding = false;
+        let hintAlpha = 0;
+        let hintPeeled = false;
+
+        // --- 物理与生态系统数据 ---
+        let particles = [];
+        let mounds = [];
+        let raindrops = [];
+        let bees = [];
+        let flowerTargets = []; // 供蜜蜂寻路的动态坐标点
+        let butterflies = []; // 兼容旧状态重置；不再由鼠标擦除生成
+
+        // --- 核心重构：多维状态机 ---
+        // 目标状态（随朗读进度瞬变）
+        let targetEnv = { dark: 0, rain: 0, cloud: 0, sun: 0, wind: 0, wet: 0 };
+        let targetTree = { seed: 0, sprout: 0, trunk: 0, leaf: 0, flower: 0, lemon: 0, fall: 0, treeFrame: 0 };
+        
+        // 当前状态（每一帧通过 Lerp 缓慢逼近目标状态，实现自然过渡）
+        let env = { dark: 0, rain: 0, cloud: 0, sun: 0, wind: 0, wet: 0 };
+        let tree = { seed: 0, sprout: 0, trunk: 0, leaf: 0, flower: 0, lemon: 0, fall: 0, treeFrame: 0 };
+
+        // --- ✅ 修改：外部图像序列资源加载 ---
+        // --- ✅ 升级：全量加载瓦克瓦克树神话进化序列图像 ---
+        let treeImgs = [];      // 树干生长 1~5
+        let fruitImgs = [];     // 果实发育 0~2
+        let girlImgs = [];      // 少女羽化 0~5
+        const imagesToLoad = 5 + 3 + 6; // 共 14 张图
+        let imagesLoadedCount = 0;
+        let imagesLoaded = false;
+
+        function checkImagesLoaded() {
+            imagesLoadedCount++;
+            if (imagesLoadedCount === imagesToLoad) {
+                imagesLoaded = true;
+                console.log("🦁 All 14 Waq-Waq mythical images successfully loaded!");
+            }
+        }
+
+        // 图片资源目录兼容：
+        // 1) HTML 在项目根目录时：waq-assets/xxx.png
+        // 2) HTML 放在 waq-assets 文件夹内时：./xxx.png
+        // 3) 旧版目录结构：assets/xxx.png
+        const WAQ_ASSET_DIRS = ["waq-assets", ".", "assets"];
+
+        function loadWaqImage(fileName, targetArray, label) {
+            const img = new Image();
+            let pathIndex = 0;
+            let settled = false;
+
+            function tryNextPath() {
+                if (pathIndex >= WAQ_ASSET_DIRS.length) {
+                    if (!settled) {
+                        settled = true;
+                        console.error(`Error: 未找到图片 ${fileName}，已尝试目录：${WAQ_ASSET_DIRS.join(", ")}`);
+                        checkImagesLoaded();
+                    }
+                    return;
+                }
+
+                const dir = WAQ_ASSET_DIRS[pathIndex++];
+                img.src = `${dir}/${fileName}`;
+            }
+
+            img.onload = () => {
+                if (!settled) {
+                    settled = true;
+                    console.log(`图片加载成功：${label}`, img.src);
+                    checkImagesLoaded();
+                }
+            };
+
+            img.onerror = tryNextPath;
+            tryNextPath();
+            targetArray.push(img);
+        }
+
+        // 1. 加载种子到树的成长图 (1 ~ 5)
+        for (let i = 1; i <= 5; i++) {
+            loadWaqImage(`waq_tree_${i}.png`, treeImgs, `waq_tree_${i}.png`);
+        }
+
+        // 2. 加载枝结女实序列 (0 ~ 2)
+        for (let i = 0; i < 3; i++) {
+            loadWaqImage(`waq_fruit_${i}.png`, fruitImgs, `waq_fruit_${i}.png`);
+        }
+
+        // 3. 加载长发垂垂、群呼、坠地少女序列 (0 ~ 5)
+        for (let i = 0; i < 6; i++) {
+            loadWaqImage(`waq_girl_${i}.png`, girlImgs, `waq_girl_${i}.png`);
+        }
+        
+        // ✅ 构建故事文本（8阶段分段）
+        function buildStory() {
+            const segs = STORY_SEGMENTS[currentLang];
+            rawText = segs.join(currentLang==="zh" ? "" : " ");
+            stageIndex = [0];
+            let count = 0;
+            segs.forEach(s=>{
+                count += splitText(s).length;
+                stageIndex.push(count);
+            });
+        }
+
+        // 高清 DPI 适配
+        function resize() {
+            let dpr = window.devicePixelRatio || 1;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            width = Math.max(320, rect.width);
+            height = Math.max(420, rect.height);
+            canvas.width = Math.floor(width * dpr);
+            canvas.height = Math.floor(height * dpr);
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            groundY = height * 0.82;
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        // 右页文字剥落时，把文字位置投射到左页画布内；
+        // 这样文字仍在右页显示，但掉落粒子会从左页边缘进入动画世界。
+        function pointFromElementToCanvas(el, yOffset = 0) {
+            const rect = el.getBoundingClientRect();
+            const canvasRect = canvas.getBoundingClientRect();
+            return {
+                x: clamp(rect.left - canvasRect.left + rect.width / 2, 24, width - 24),
+                y: clamp(rect.top - canvasRect.top + rect.height / 2 + yOffset, 24, height - 24)
+            };
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 强力阿拉伯语清洗器
+        // ✅ 按语言清洗文本
+        function normalizeText(text) {
+            if (!text) return "";
+            if (currentLang === "ar") {
+                return text.replace(/[\u064B-\u065F\u0670]/g, '')
+                           .replace(/[أإآ]/g, 'ا')
+                           .replace(/ة/g, 'ه')
+                           .replace(/[.,،。؛؟]/g, '')
+                           .trim();
+            }
+            if (currentLang === "zh") {
+                return text.replace(/[，。！？、；：""''（）]/g, '').trim();
+            }
+            if (currentLang === "en") {
+                return text.toLowerCase().replace(/[^a-z']/g, '').trim();
+            }
+            return text;
+        }
+
+        // --- 初始化与解析 ---
+        // ✅ 文本切分（中文逐字，其他按单词）
+        function splitText(text){
+            if(currentLang === "zh") {
+                return text.replace(/\s+/g,'').split(''); // 中文逐字
+            }
+            return text.trim().split(/\s+/); // 阿语/英文按单词
+        }
+        
+        function initText() {
+            const rawWords = splitText(rawText);
+            rawWords.forEach((word, index) => {
+                words.push({ text: word, clean: normalizeText(word) });
+                const span = document.createElement('span');
+                span.className = 'word';
+                span.innerText = word + (currentLang==="zh" ? '' : ' ');
+                span.style.margin = currentLang==="zh" ? '0 1px' : '0 4px';
+                span.style.pointerEvents = 'auto';
+                span.style.cursor = 'default';
+                span.addEventListener('mouseenter', () => { // ✅ 改为鼠标划过
+                    if(index === currentWordIndex) triggerWordDrop();
+                });
+                textContainer.appendChild(span);
+                wordElements.push(span);
+            });
+            highlightCurrent();
+            initBees(); // 预先初始化蜜蜂实体，隐藏于场外
+        }
+
+        function highlightCurrent() {
+            wordElements.forEach((el, i) => {
+                if (i === currentWordIndex) el.classList.add('active');
+                else el.classList.remove('active');
+            });
+        }
+
+        // --- 剧情状态机映射器 ---
+        // 根据已读到的单词索引，决定当前的美学与生长状态
+        // ✅ 按 9 段文本精确映射瓦克瓦克树、果实、少女与天气
+        function updateStoryState(){
+            const getProg = (a,b)=>{
+                if (b <= a) return 1;
+                return Math.max(0, Math.min(1, (currentWordIndex - a) / (b - a)));
+            };
+            const seg = (i)=>getProg(stageIndex[i], stageIndex[i+1]);
+            const span = (a,b)=>getProg(stageIndex[a], stageIndex[b]);
+            const started = (i)=> currentWordIndex >= stageIndex[i];
+            const finished = (i)=> currentWordIndex >= stageIndex[i+1];
+
+            // 文本阶段：
+            // 0 异岛沃土；1 生瓦克瓦克树；2 雨至芽出；3 旱炽木成；4 叶掌冠盖；
+            // 5 枝结女实；6 风动群呼；7 熟而坠；8 无父无母。
+            const pIsland = seg(0);
+            const pTreeBorn = seg(1);
+            const pRain = seg(2);
+            const pDrought = seg(3);
+            const pCanopy = seg(4);
+            const pGirlFruit = seg(5);
+            const pWindCall = seg(6);
+            const pFall = seg(7);
+            const pBorn = seg(8);
+
+            // 天气：雨只在“雨至，实坼而芽出”阶段出现；进入“旱炽”日出阶段时立刻停雨。
+            const sunActive = started(3);
+            const sunRise = sunActive ? Math.max(0.14, pDrought, pCanopy, started(5) ? 1 : 0) : 0;
+            let rainAmount = sunActive ? 0 : pRain;
+            if (sunActive) {
+                // 避免 Lerp 惯性导致“太阳出来但仍在下雨”的重叠帧。
+                env.rain = 0;
+                env.cloud = 0;
+                env.dark = 0;
+                env.wet = 0;
+                raindrops = [];
+                if (rainSound) rainSound.volume = 0;
+            }
+            targetEnv.cloud = rainAmount;
+            targetEnv.rain = rainAmount;
+            targetEnv.dark = rainAmount * 0.35;
+            targetEnv.wet = rainAmount;
+            targetEnv.sun = sunRise;
+            targetEnv.wind = -(pWindCall * 1.15 + pFall * 0.45); // 右→左吹动少女长发
+
+            // 大树图像：waq_tree_1 -> waq_tree_2 -> waq_tree_3 -> waq_tree_4 -> waq_tree_5
+            if (!started(1)) {
+                targetTree.treeFrame = 0;
+            } else if (!started(2)) {
+                targetTree.treeFrame = 0; // 生瓦克瓦克树：waq_tree_1.png
+            } else if (!started(3)) {
+                targetTree.treeFrame = 1; // 雨至芽出：waq_tree_2.png
+            } else if (!started(5)) {
+                targetTree.treeFrame = 2 + span(3,5); // 旱炽/叶冠：waq_tree_3.png -> waq_tree_4.png
+            } else {
+                targetTree.treeFrame = 4; // 枝结女实之后：waq_tree_5.png
+            }
+
+            // 程序枝条只作为挂果/少女定位骨架，与外部树图像同步出现。
+            targetTree.seed = Math.max(pTreeBorn, finished(1) ? 1 : 0);
+            targetTree.sprout = Math.max(pRain, finished(2) ? 1 : 0);
+            targetTree.trunk = Math.max(pDrought, pCanopy, started(5) ? 1 : 0);
+            targetTree.leaf = Math.max(pCanopy, started(5) ? 1 : 0);
+
+            // 种子/果实：旱炽到叶冠期间 waq_fruit_0 -> 1 -> 2；随后淡出为少女果。
+            targetTree.flower = started(3) ? (started(5) ? 1 : span(3,5)) : 0;
+
+            // 少女果：枝结女实时 waq_girl_0 -> 1 -> 2；风动时固定 waq_girl_3；成熟时只另画两个坠地少女。
+            if (!started(5)) targetTree.lemon = 0;
+            else if (!started(6)) targetTree.lemon = pGirlFruit * 0.58;
+            else if (!started(7)) targetTree.lemon = 0.62 + pWindCall * 0.20;
+            else targetTree.lemon = 0.82 + Math.max(pFall, pBorn) * 0.18;
+
+            targetTree.fall = started(7) ? Math.max(pFall, pBorn) : 0;
+        }
+
+        // --- 宽容的语音识别 ---
+        let lastTranscriptLength = 0;
+        function initSpeech() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) return;
+            window.recognition = new SpeechRecognition();
+            const recognition = window.recognition;
+            recognition.lang = SPEECH_LANG[currentLang];
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onresult = (event) => {
+                let latestTranscript = '';
+                for (let i = Math.max(0, event.resultIndex - 2); i < event.results.length; ++i) {
+                    latestTranscript += event.results[i][0].transcript;
+                }
+                const normalized = normalizeText(latestTranscript);
+                if (currentWordIndex >= words.length) return;
+
+                // ✅ 容错滑动窗口（按语言调整阈值）
+                let matchedAhead = -1;
+                for (let i = 0; i <= 3; i++) {
+                    let checkIndex = currentWordIndex + i;
+                    if (checkIndex < words.length) {
+                        let target = words[checkIndex].clean;
+                        let minLen = (currentLang === "zh") ? 1 : (currentLang === "en") ? 2 : 3;
+                        if (target.length >= minLen && normalized.includes(target)) {
+                            matchedAhead = i; break;
+                        }
+                    }
+                }
+                if (matchedAhead !== -1) {
+                    for (let j = 0; j <= matchedAhead; j++) triggerWordDrop();
+                    lastTranscriptLength = normalized.length;
+                    return;
+                }
+                // 能量兜底
+                if (normalized.length - lastTranscriptLength > 15) {
+                    triggerWordDrop();
+                    lastTranscriptLength = normalized.length;
+                }
+            };
+            recognition.onend = () => { if (currentWordIndex < words.length) try { recognition.start(); } catch(e){} };
+            try { recognition.start(); } catch(e){}
+        }
+
+        // 剥落与触发系统更新
+        // ✅ 修改：使用 do-while 循环。掉落当前文字后，如果发现下一个是标点（clean为空），顺便一起剥落
+        function triggerWordDrop() {
+            if (currentWordIndex >= words.length) return;
+            
+            do {
+                if (currentWordIndex >= words.length) break;
+                
+                const el = wordElements[currentWordIndex];
+                if (!el.classList.contains('absorbed')) {
+                    const pt = pointFromElementToCanvas(el, 10);
+                    // 文字在右页剥落，粒子从左页动画边缘进入树的世界
+                    particles.push({
+                        x: pt.x,
+                        y: pt.y,
+                        text: words[currentWordIndex].text,
+                        vx: (Math.random() - 0.5) * 1.5 - (env.wind * 1.5), // 风将文字吹向左侧
+                        vy: Math.random() * -1.5,
+                        alpha: 1
+                    });
+                    el.classList.add('absorbed');
+                }
+                currentWordIndex++;
+            } while (currentWordIndex < words.length && words[currentWordIndex].clean.length === 0);
+            
+            highlightCurrent();
+            updateStoryState(); // 每次掉落更新目标剧情状态
+            
+            // ✅ 朗读结束触发结束动画
+            if (currentWordIndex >= words.length) {
+                startEnding();
+            }
+        }
+        
+        // ✅ 朗读结束后直接进入结束画面
+        function startEnding(){
+            if (overlayShown) return;
+            ending = true;
+            overlayShown = true;
+            textContainer.style.opacity = 0;
+            endTimer = 0;
+            endFade = 1;
+            petals = [];
+            butterflies = [];
+            if (window.recognition) {
+                window.recognition.onend = null;
+                try { window.recognition.stop(); } catch(e){}
+            }
+            showEndOverlay();
+        }
+        
+        // ✅ 绘制花瓣
+        function drawPetal(x,y,scale,rot,color,alpha){
+            ctx.save();
+            ctx.translate(x,y);
+            ctx.rotate(rot);
+            ctx.scale(scale,scale);
+            ctx.globalAlpha = alpha;
+            ctx.beginPath();
+            ctx.moveTo(0,0);
+            ctx.quadraticCurveTo(4,-8,0,-16);
+            ctx.quadraticCurveTo(-4,-8,0,0);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.restore();
+        }
+        
+        // ✅ 绘制花瓣群（二次贝塞尔 + 风场）
+        // ✅ 魔法擦除：流体花瓣追随蜜蜂（二次贝塞尔 + 正弦波微风场）
+        function drawTreeParticles() {
+            // 获取蜜蜂群体的位置中心点，作为花瓣追随的目标
+            let leader = { x: width / 2, y: height * 0.3 };
+            let activeBees = bees.filter(b => b.active || true);
+            if (activeBees.length > 0) {
+                leader.x = activeBees.reduce((s, b) => s + b.x, 0) / activeBees.length;
+                leader.y = activeBees.reduce((s, b) => s + b.y, 0) / activeBees.length;
+            }
+            petals.forEach(p => {
+                // 极度柔缓的生命周期推进（越老越慢）
+                p.t = Math.min(1, p.t + p.speed);
+                // 目标点带有流体游离感 (像被风吹着追随蜜蜂)
+                let fluidTargetX = leader.x + Math.sin(time * 0.01 + p.phase) * 120;
+                let fluidTargetY = leader.y + Math.cos(time * 0.015 + p.phase) * 80;
+                p.ex += (fluidTargetX - p.ex) * 0.015;
+                p.ey += (fluidTargetY - p.ey) * 0.015;
+                const t = p.t, inv = 1 - t;
+                // 核心：二次贝塞尔曲线路径计算，绝对禁止僵硬直线
+                let x = inv * inv * p.sx + 2 * inv * t * p.cx + t * t * p.ex;
+                let y = inv * inv * p.sy + 2 * inv * t * p.cy + t * t * p.ey;
+                // 叠加流体微风场，增加呼吸摇曳感
+                x += Math.sin(time * 0.02 + p.phase) * 25 * inv;
+                y += Math.cos(time * 0.015 + p.phase) * 20 * inv;
+                let breathe = 1 + Math.sin(time * 0.05 + p.phase) * 0.2;
+                let alpha = 1 - Math.pow(t, 3); // 只有在最后阶段才慢慢透明
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(p.phase + time * 0.01);
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = p.color;
+                // 绘制有机的花瓣形状（使用贝塞尔曲线绘制，不用生硬的圆）
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.quadraticCurveTo(p.size, -p.size, 0, -p.size * 2.5);
+                ctx.quadraticCurveTo(-p.size, -p.size, 0, 0);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        // --- 环境渲染：柔和层叠 ---
+        // ✅ 升级：魔法光滤镜层 - 正片叠底风格
+        function drawEnvironment() {
+            // 1. 魔法环境光滤镜 (叠加在纸张上)
+            // 根据阴天 (env.cloud) 和夜晚 (env.dark) 的数值计算画面变暗的程度
+            // 最高只叠加大约 0.7 的透明度，确保连最黑的夜晚也能隐约看到纸张纹理
+            let ambientDarkness = (env.dark * 0.5) + (env.cloud * 0.2);
+            if (ambientDarkness > 0) {
+                ctx.save();
+                // 使用带有微弱冷蓝色的暗色系作为滤镜
+                ctx.fillStyle = `rgba(20, 25, 40, ${ambientDarkness})`;
+                ctx.fillRect(0, 0, width, height);
+                ctx.restore();
+            }
+
+            // 2. 柔软、边缘模糊、缓慢流动的乌云 (利用径向渐变替代僵硬椭圆)
+            if (env.cloud > 0.01) {
+                ctx.save();
+                let cloudOffset = time * 0.03; // 缓慢流动的速度
+                // 定义几个大型云团的初始相对位置和大小
+                const clouds = [
+                    {x: width * 0.2, y: -50, r: height * 0.4},
+                    {x: width * 0.5, y: -80, r: height * 0.5},
+                    {x: width * 0.8, y: -20, r: height * 0.35},
+                    {x: width * 1.1, y: -60, r: height * 0.45}
+                ];
+                clouds.forEach((c, i) => {
+                    // 让云层形成无缝滚动的循环
+                    let cx = (c.x - cloudOffset + i * 20) % (width + c.r * 2);
+                    if (cx < -c.r) cx += width + c.r * 2;
+                    // ✅ 使用半透明白色，与暗色滤镜形成对比
+                    let grad = ctx.createRadialGradient(cx, c.y, 0, cx, c.y, c.r);
+                    grad.addColorStop(0, `rgba(255, 255, 255, ${env.cloud * 0.25})`);
+                    grad.addColorStop(0.5, `rgba(255, 255, 255, ${env.cloud * 0.15})`);
+                    grad.addColorStop(1, `rgba(255, 255, 255, 0)`);
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(cx, c.y, c.r, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.restore();
+            }
+
+            // 3. 柔和的日出（晕开的暖金光斑）
+            // 3. 柔和的日出（晕开的暖金光斑）
+            if (env.sun > 0.01) {
+                ctx.save();
+                let sunY = height * 0.6 - env.sun * height * 0.4; // 太阳升起轨迹
+                let sunGrad = ctx.createRadialGradient(width/2, sunY, 0, width/2, sunY, 250);
+                sunGrad.addColorStop(0, `rgba(255, 235, 180, ${env.sun * 0.6})`);
+                sunGrad.addColorStop(0.3, `rgba(255, 220, 150, ${env.sun * 0.3})`);
+                sunGrad.addColorStop(1, `rgba(255, 200, 100, 0)`);
+                ctx.fillStyle = sunGrad;
+                ctx.beginPath();
+                ctx.arc(width/2, sunY, 250, 0, Math.PI*2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // 4. 生成细密小雨（增加密度和可见度）
+            if (env.rain > 0.01) {
+                // 每帧生成 3~6 滴雨（显著提高雨丝密度）
+                let spawnCount = Math.floor(env.rain * 6);
+                if (Math.random() < (env.rain * 6) % 1) spawnCount++;
+                for(let i = 0; i < spawnCount; i++) {
+                    raindrops.push({
+                        x: Math.random() * width,
+                        y: -50, // 从屏幕外上方起始
+                        length: 30 + Math.random() * 50, // 增加雨丝长度
+                        vy: 16 + Math.random() * 8, // 增加下落速度
+                        offset: Math.random() * 100, // 用于扰动相位
+                        alpha: 0.3 + Math.random() * 0.5 // 提高透明度下限，让雨水更明显
+                    });
+                }
+            }
+
+            // 5. ✅ 动态雨滴 (银蓝色，在暗环境上显眼)
+            if (env.rain > 0 && raindrops.length > 0) {
+                ctx.save();
+                // 雨滴的颜色：半透明的银蓝色，在深色纸张和暗环境上会非常显眼
+                ctx.strokeStyle = `rgba(180, 200, 220, ${0.4 + env.rain * 0.4})`;
+                ctx.lineWidth = 1.5;
+                ctx.lineCap = 'round';
+                for (let i = raindrops.length - 1; i >= 0; i--) {
+                    let r = raindrops[i];
+                    // 考虑 env.wind 风向对雨滴倾斜度的影响
+                    let windOffset = env.wind * r.length * 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(r.x, r.y);
+                    ctx.lineTo(r.x + windOffset, r.y + r.length);
+                    ctx.stroke();
+                    // 更新雨滴位置，超出底部则重置到顶部
+                    r.x += env.wind * r.vy * 0.3;
+                    r.y += r.vy;
+                    if (r.y > height) {
+                        r.y = -20;
+                        r.x = Math.random() * width;
+                    }
+                }
+                ctx.restore();
+            }
+        }
+
+        // --- 大地与粒子渲染 ---
+        function drawGroundAndParticles() {
+            // 地平线
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(width, groundY);
+            ctx.strokeStyle = 'rgba(200, 195, 185, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // 养分丘
+            mounds.forEach(m => {
+                m.life = Math.min(m.life + 1, m.maxLife);
+                let alpha = 1 - (m.life / m.maxLife);
+                ctx.beginPath();
+                // 养分丘受微风影响稍微向左偏移拉伸
+                let windOffset = env.wind * 8; 
+                ctx.moveTo(m.x - 15 - windOffset, m.y);
+                let cx = m.x - windOffset/2 + Math.sin(time * 0.1 + m.offset) * 10;
+                let cy = m.y - 10 - Math.sin(m.life * 0.05) * 5;
+                ctx.quadraticCurveTo(cx, cy, m.x + 15, m.y);
+                ctx.strokeStyle = `rgba(110, 130, 90, ${alpha * 0.5})`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+            mounds = mounds.filter(m => m.life < m.maxLife);
+
+            // 文字粒子
+            ctx.font = '1.2rem Amiri';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.vy += 0.3; // 柔和重力
+                // 加入风的侧向吹动和正弦摇曳
+                p.vx += (-env.wind * 0.05) + Math.sin(time * 0.05 + p.y) * 0.02;
+                p.x += p.vx;
+                p.y += p.vy;
+
+                if (p.y >= groundY) {
+                    mounds.push({ x: p.x, y: groundY, life: 0, maxLife: Math.random() * 80 + 100, offset: Math.random() * 100 });
+                    particles.splice(i, 1);
+                    continue;
+                }
+                ctx.fillStyle = `rgba(85, 83, 79, ${p.alpha})`;
+                ctx.fillText(p.text, p.x, p.y);
+            }
+        }
+
+        // --- 器官绘制 (水滴叶、五瓣花、黄柠檬) ---
+        function drawLeaf(x, y, angle, scale) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.scale(scale, scale);
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.quadraticCurveTo(-8, -10, 0, -25);
+            ctx.quadraticCurveTo(8, -10, 0, 0);
+            ctx.fillStyle = `rgba(115, 140, 100, 0.85)`; // 低饱和通透绿
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawFlower(x, y, scale, alpha) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+            ctx.fillStyle = `rgba(255, 245, 248, ${alpha})`; // 粉白
+            for(let i=0; i<5; i++) {
+                ctx.rotate((Math.PI * 2) / 5);
+                ctx.beginPath();
+                ctx.ellipse(0, -7, 3.5, 9, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            // 暖黄花蕊
+            ctx.beginPath();
+            ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(240, 200, 140, ${alpha})`;
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawLemon(x, y, scale) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+            ctx.rotate(Math.PI / 3); // 柠檬由于重力倾斜挂着
+
+            // 绘制自然形态的柠檬 (两端微尖的椭圆)
+            ctx.beginPath();
+            ctx.moveTo(0, -10);
+            ctx.bezierCurveTo(7, -8, 9, -2, 9, 3);
+            ctx.bezierCurveTo(9, 8, 5, 11, 0, 13); // 底部凸起尖端
+            ctx.bezierCurveTo(-5, 11, -9, 8, -9, 3);
+            ctx.bezierCurveTo(-9, -2, -7, -8, 0, -10);
+            
+            // 柔和的柠檬黄渐变
+            let lemGrad = ctx.createRadialGradient(-3, 0, 1, 0, 0, 10);
+            lemGrad.addColorStop(0, '#fff9d6');
+            lemGrad.addColorStop(1, '#f2d052');
+            ctx.fillStyle = lemGrad;
+            ctx.fill();
+
+            // 极细的果柄
+            ctx.beginPath();
+            ctx.moveTo(0, -10);
+            ctx.lineTo(-2, -14);
+            ctx.strokeStyle = '#6b7a54';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // --- 核心：生命树渲染 (递归贝塞尔) ---
+        function drawTreeStructure() {
+            let startX = width / 2;
+            
+            // 1. 画种子
+            if (tree.seed > 0.01) {
+                let seedAlpha = Math.max(0, 1 - tree.sprout * 2); // 嫩芽长大后种子淡出
+                ctx.beginPath();
+                ctx.ellipse(startX, groundY + 3, 5 * tree.seed, 3.5 * tree.seed, 0, 0, Math.PI*2);
+                ctx.fillStyle = `rgba(120, 100, 80, ${seedAlpha})`;
+                ctx.fill();
+            }
+
+            // 2. 画嫩芽
+            if (tree.sprout > 0.01 && tree.trunk < 0.2) {
+                let sH = 20 * tree.sprout;
+                ctx.beginPath();
+                ctx.moveTo(startX, groundY);
+                // 嫩芽带点试探的弯曲
+                ctx.quadraticCurveTo(startX + 8, groundY - sH/2, startX - 2, groundY - sH);
+                ctx.strokeStyle = `rgba(130, 160, 100, ${1 - tree.trunk*5})`;
+                ctx.lineWidth = 2.5;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            }
+
+            // 3. 画主干与枝叶
+            if (tree.trunk > 0.01) {
+                flowerTargets = []; // 每帧清空，重新收集花朵坐标给蜜蜂
+                nectarTargets = []; // ✅ 清空花朵+柠檬目标池
+                treePoints = []; // ✅ 清空树点
+                let baseLength = height * 0.18;
+                drawBranch(startX, groundY, baseLength, -Math.PI / 2, 1, 6, tree.trunk, "root");
+            }
+        }
+
+        // ✅ 绘制外部瓦克瓦克树序列图：waq_tree_1.png -> waq_tree_5.png
+        function drawWaqTreeImage() {
+            if (!imagesLoaded || treeImgs.length === 0) return;
+            const visible = Math.max(tree.seed, tree.sprout, tree.trunk, tree.leaf, tree.flower, tree.lemon, tree.fall);
+            if (visible <= 0.01) return;
+
+            const frame = Math.max(0, Math.min(4, Math.round(tree.treeFrame)));
+            const img = treeImgs[frame];
+            if (!img || !img.complete || img.naturalWidth <= 0) return;
+
+            ctx.save();
+            const tScale = height * 0.75 / img.naturalHeight;
+            const tWidth = img.naturalWidth * tScale;
+            const tHeight = img.naturalHeight * tScale;
+            ctx.globalAlpha = Math.min(1, visible * 1.35);
+            ctx.drawImage(img, width / 2 - tWidth / 2, groundY - tHeight, tWidth, tHeight);
+            ctx.restore();
+        }
+
+        // ✅ 最终只让两个成熟果子坠地，分别化为 waq_girl_4.png 与 waq_girl_5.png
+        function drawFallingGirls() {
+            if (!imagesLoaded || tree.fall <= 0.02) return;
+            const fallEase = 1 - Math.pow(1 - Math.min(1, tree.fall), 3);
+            const girls = [
+                { imgIndex: tree.fall < 0.35 ? 3 : 4, x0: width * 0.45, x1: width * 0.40, phase: 0.0 },
+                { imgIndex: tree.fall < 0.35 ? 3 : 5, x0: width * 0.56, x1: width * 0.60, phase: 1.7 }
+            ];
+
+            girls.forEach((g, i) => {
+                const img = girlImgs[g.imgIndex];
+                if (!img || !img.complete || img.naturalWidth <= 0) return;
+
+                const scale = 0.20 + 0.035 * fallEase;
+                const gWidth = img.naturalWidth * scale;
+                const gHeight = img.naturalHeight * scale;
+                const sway = Math.sin(time * 0.05 + g.phase) * (1 - fallEase) * 28;
+                const x = g.x0 + (g.x1 - g.x0) * fallEase + sway;
+                const startY = groundY - height * 0.43;
+                const yBase = startY + (groundY - 6 - startY) * fallEase;
+
+                ctx.save();
+                ctx.globalAlpha = Math.min(1, tree.fall * 1.4);
+                ctx.translate(x, yBase);
+                ctx.rotate(Math.sin(time * 0.04 + g.phase) * (1 - fallEase) * 0.18);
+
+                // 落地后加一点柔软的影子，让“化为女子”更稳定。
+                if (tree.fall > 0.65) {
+                    ctx.save();
+                    ctx.globalAlpha = (tree.fall - 0.65) / 0.35 * 0.18;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 3, gWidth * 0.28, 7, 0, 0, Math.PI * 2);
+                    ctx.fillStyle = '#4a4038';
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                ctx.drawImage(img, -gWidth / 2, -gHeight, gWidth, gHeight);
+                ctx.restore();
+            });
+        }
+
+        // 递归树枝生成
+        function drawBranch(x, y, length, angle, depth, maxDepth, growth, pathId = "root") {
+            // 高层级的树枝需要更晚长出
+            let depthDelay = (depth - 1) / maxDepth;
+            // ✅ 归一化版本，使深层也能达到 1
+            let localGrowth = Math.max(0, Math.min(1, (growth - depthDelay) / (1 - depthDelay)));
+            if (localGrowth <= 0) return;
+
+            let currentLen = length * localGrowth;
+            
+            // 环境微风扰动 + 果实重力下垂
+            let windBend = -env.wind * 0.15 * (depth / maxDepth); 
+            let breeze = Math.sin(time * 0.03 + depth) * 0.05 * (depth / maxDepth);
+            let fruitDroop = Math.max(tree.flower, tree.lemon) * 0.15 * (depth / maxDepth); // 女实成熟后枝干轻微下垂
+            let finalAngle = angle + breeze + windBend + fruitDroop;
+
+            let endX = x + Math.cos(finalAngle) * currentLen;
+            let endY = y + Math.sin(finalAngle) * currentLen;
+
+            // 二次贝塞尔控制点营造柔和弧度
+            let cx = x + Math.cos(finalAngle - 0.2) * currentLen * 0.5;
+            let cy = y + Math.sin(finalAngle - 0.2) * currentLen * 0.5;
+
+            // ✅ 已移除朗读结束后的鼠标擦除树干/花瓣互动；树枝始终正常绘制。
+            let isErased = false;
+            
+            if (!isErased) {
+                // 绘制树枝
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.quadraticCurveTo(cx, cy, endX, endY);
+                
+                ctx.strokeStyle = `rgba(80, 75, 70, 0.95)`;
+                ctx.lineCap = 'round';
+                ctx.lineWidth = Math.max(0.8, (maxDepth - depth) * 1.8 * localGrowth);
+                ctx.stroke();
+
+                // 末端衍生：叶片、花、果
+                if (depth >= maxDepth - 2) {
+                    // 叶片
+                    if (tree.leaf > 0) {
+                        let leafScale = tree.leaf * localGrowth;
+                        drawLeaf(endX, endY, finalAngle + Math.PI/2, leafScale);
+                    }
+
+                    // 花与果实 (都在顶端)
+                    if (depth === maxDepth) {
+                        // ============================================================
+                        // 🌲 瓦克瓦克树顶端·神话级生命演化阶段
+                        // ============================================================
+                        
+                        // --------------------------------------------------------
+                        // 阶段 1：【旱炽 / 叶冠】种子果实发育 (waq_fruit_0 -> 1 -> 2)
+                        // --------------------------------------------------------
+                        // 少女果出现后，普通果实柔和淡出。
+                        let currentFruitAlpha = tree.flower * (1 - Math.min(1, tree.lemon * 1.8));
+                        if (currentFruitAlpha > 0.05) {
+                            let breath = 1 + Math.sin(time * 0.05 + endX) * 0.04;
+                            if (imagesLoaded) {
+                                ctx.save();
+                                ctx.globalAlpha = currentFruitAlpha;
+                                ctx.translate(endX, endY);
+                                let fIndex = 0;
+                                if (tree.flower >= 0.68) fIndex = 2;
+                                else if (tree.flower >= 0.34) fIndex = 1;
+                                let img = fruitImgs[fIndex];
+                                if (img && img.complete && img.naturalWidth > 0) {
+                                    let fruitScale = (0.08 + tree.flower * 0.10) * breath;
+                                    let fWidth = img.naturalWidth * fruitScale;
+                                    let fHeight = img.naturalHeight * fruitScale;
+                                    ctx.drawImage(img, -fWidth / 2, 0, fWidth, fHeight);
+                                }
+                                ctx.restore();
+                            }
+                            if (tree.flower > 0.5) nectarTargets.push({x: endX, y: endY});
+                        }
+
+                        // --------------------------------------------------------
+                        // 阶段 2：【枝结女实 / 风动群呼】少女果 (waq_girl_0 -> 1 -> 2 -> 3)
+                        // --------------------------------------------------------
+                        // 这里最多显示 waq_girl_3；成熟坠地的 waq_girl_4/5 只由 drawFallingGirls() 画两个。
+                        if (tree.lemon > 0.01) {
+                            if (imagesLoaded) {
+                                ctx.save();
+                                ctx.translate(endX, endY);
+                                let gIndex = 0;
+                                if (tree.lemon >= 0.60) {
+                                    gIndex = 3;
+                                    // 风动群呼：整体轻摆 + 水平剪切，让长发像被风吹向左侧。
+                                    let windWave = Math.sin(time * 0.09 + endX * 0.02) * Math.abs(env.wind);
+                                    ctx.translate(env.wind * 8 + windWave * 6, 0);
+                                    ctx.rotate(env.wind * 0.08 + windWave * 0.03);
+                                    ctx.transform(1, 0, env.wind * 0.10 + windWave * 0.02, 1, 0, 0);
+                                } else {
+                                    if (tree.lemon >= 0.40) gIndex = 2;
+                                    else if (tree.lemon >= 0.20) gIndex = 1;
+                                    else gIndex = 0;
+                                }
+                                let img = girlImgs[gIndex];
+                                if (img && img.complete && img.naturalWidth > 0) {
+                                    let girlScale = (0.08 + tree.lemon * 0.10);
+                                    let gWidth = img.naturalWidth * girlScale;
+                                    let gHeight = img.naturalHeight * girlScale;
+                                    ctx.globalAlpha = Math.min(1, tree.lemon * 1.35) * (1 - Math.max(0, tree.fall - 0.75) * 0.5);
+                                    ctx.drawImage(img, -gWidth / 2, 0, gWidth, gHeight);
+                                }
+                                ctx.restore();
+                            }
+                            nectarTargets.push({x: endX, y: endY});
+                        }
+                    }
+                }
+            }
+            
+            // 记录枝端点
+            treePoints.push({ x: endX, y: endY });
+            
+            // 递归子枝条（传递专属的 pathId：-L 和 -R）
+            if (depth < maxDepth && localGrowth > 0.2) {
+                drawBranch(endX, endY, length * 0.76, angle - 0.35, depth + 1, maxDepth, growth, pathId + "-L");
+                drawBranch(endX, endY, length * 0.72, angle + 0.45, depth + 1, maxDepth, growth, pathId + "-R");
+            }
+        }
+
+        // --- 蜜蜂生态层 ---
+        function initBees() {
+            for(let i=0; i<5; i++) {
+                bees.push({
+                    x: width/2 + (Math.random()-0.5)*200,
+                    y: height + 50, // 初始在屏幕下方外
+                    vx: 0, vy: 0,
+                    tx: 0, ty: 0,
+                    offset: Math.random() * 100,
+                    active: false,
+                    targetTimer: 0 // ✅ 目标冷却时间
+                });
+            }
+        }
+
+        // ✅ 绘制蜜蜂（放大版）
+        function drawBee(b) {
+            ctx.save();
+            ctx.translate(b.x, b.y);
+            ctx.rotate(Math.atan2(b.vy, b.vx));
+            const beeScale = 1.6; // 放大比例
+            ctx.scale(beeScale, beeScale);
+            ctx.globalAlpha = 1;
+            
+            // 身体
+            ctx.fillStyle = '#d4ad3d';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 3, 2, 0, 0, Math.PI*2);
+            ctx.fill();
+            
+            // 黑条纹
+            ctx.fillStyle = '#333';
+            ctx.fillRect(-1, -2, 2, 4);
+            
+            // 翅膀
+            if (time % 2 === 0) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.beginPath();
+                ctx.ellipse(0, -3, 2, 3, -0.5, 0, Math.PI*2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.ellipse(0, 3, 2, 3, 0.5, 0, Math.PI*2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        // ✅ 棕色小蝴蝶飞散动画（追随鼠标的二次贝塞尔轨迹）
+        function updateAndDrawButterflies() {
+            // 设定鼠标为蝴蝶们的领袖！
+            let leader = { x: mouse.x, y: mouse.y };
+            for (let i = butterflies.length - 1; i >= 0; i--) {
+                let b = butterflies[i];
+                b.t = Math.min(1, b.t + b.speed);
+                // 目标点带有流体游离感，围绕鼠标飞舞
+                let fluidTargetX = leader.x + Math.sin(time * 0.02 + b.offset) * 60;
+                let fluidTargetY = leader.y + Math.cos(time * 0.025 + b.offset) * 60;
+                b.ex += (fluidTargetX - b.ex) * 0.02; // 平滑逼近目标
+                b.ey += (fluidTargetY - b.ey) * 0.02;
+                const t = b.t, inv = 1 - t;
+                // 使用与花瓣一致的二次贝塞尔曲线计算
+                let x = inv * inv * b.sx + 2 * inv * t * b.cx + t * t * b.ex;
+                let y = inv * inv * b.sy + 2 * inv * t * b.cy + t * t * b.ey;
+                // 叠加微风环境的扰动
+                x += Math.sin(time * 0.1 + b.offset) * 5 * inv;
+                y += Math.cos(time * 0.15 + b.offset) * 5 * inv;
+                ctx.save();
+                ctx.translate(x, y);
+                // 让蝴蝶随着飞行方向旋转（更逼真）
+                let angle = Math.atan2(y - b.lastY || 0, x - b.lastX || 0);
+                ctx.rotate(angle + Math.PI / 2);
+                b.lastX = x;
+                b.lastY = y;
+                // 振翅动画
+                let flap = Math.abs(Math.sin(time * 0.5 + b.offset));
+                ctx.fillStyle = "rgba(139, 69, 19, 0.9)"; // 质感木皮棕色
+                ctx.beginPath();
+                // 画出两瓣随着时间拍打的小翅膀
+                ctx.ellipse(-b.size, 0, b.size * (0.2 + flap * 0.8), b.size * 1.5, -0.3, 0, Math.PI * 2);
+                ctx.ellipse(b.size, 0, b.size * (0.2 + flap * 0.8), b.size * 1.5, 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                // 蝴蝶不再被主动销毁，永远追随鼠标直到黑场！
+            }
+        }
+
+        function updateAndDrawBees() {
+            let beeAppear = stageIndex.length > 5 ? currentWordIndex >= stageIndex[5] : currentWordIndex >= 45; // 女实阶段开始
+            let beeFollowMouse = stageIndex.length > 7 ? currentWordIndex >= stageIndex[7] : currentWordIndex >= 54; // 成熟阶段后跟鼠标
+            
+            if (!beeAppear) return;
+            
+            // ✅ 结束动画时蜜蜂飞离画面
+            if (ending) {
+                let exit = {x: width + 200, y: -200};
+                bees.forEach(b=>{
+                    b.tx = exit.x + (Math.random()-0.5)*80;
+                    b.ty = exit.y + (Math.random()-0.5)*80;
+                });
+            }
+
+            const now = Date.now();
+            const mouseIdle = (now - mouse.lastMove) > 2000; // ✅ 2秒无移动判定
+            const followMouse = beeFollowMouse && mouse.active && !mouseIdle;
+
+            bees.forEach((b) => {
+                if (followMouse) {
+                    // 鼠标活跃 → 跟随
+                    b.tx = mouse.x + (Math.random() - 0.5) * 30;
+                    b.ty = mouse.y + (Math.random() - 0.5) * 30;
+                } else {
+                    // 鼠标静止 or 离开 → 继续在树上找花/柠檬
+                    b.targetTimer--;
+                    const dist = Math.hypot(b.tx - b.x, b.ty - b.y);
+                    if (b.targetTimer <= 0 || dist < 12) {
+                        if (nectarTargets.length > 0) {
+                            let t = nectarTargets[Math.floor(Math.random() * nectarTargets.length)];
+                            b.tx = t.x + (Math.random() - 0.5) * 25;
+                            b.ty = t.y + (Math.random() - 0.5) * 25;
+                        } else {
+                            // 没有花果时在树冠附近徘徊
+                            b.tx = width / 2 + (Math.random() - 0.5) * 200;
+                            b.ty = height * 0.4 + (Math.random() - 0.5) * 150;
+                        }
+                        b.targetTimer = 60 + Math.random() * 120; // 1~3秒换一次目标
+                    }
+                }
+                
+                // 飞行运动
+                b.vx += (b.tx - b.x) * 0.001;
+                b.vy += (b.ty - b.y) * 0.001;
+                b.vx += Math.sin(time * 0.1 + b.offset) * 0.2;
+                b.vy += Math.cos(time * 0.13 + b.offset) * 0.2;
+                
+                let maxSpeed = 3;
+                let speed = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
+                if (speed > maxSpeed) {
+                    b.vx = (b.vx / speed) * maxSpeed;
+                    b.vy = (b.vy / speed) * maxSpeed;
+                }
+                
+                b.vx *= 0.95;
+                b.vy *= 0.95;
+                b.x += b.vx;
+                b.y += b.vy;
+                
+                drawBee(b);
+            });
+        }
+
+        // --- 主渲染循环 ---
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            time += 1;
+
+            // 1. 平滑推进所有状态变量 (Lerp插值)
+            const lerpSpeed = 0.02; // 缓慢、有呼吸感
+            for(let k in env) env[k] += (targetEnv[k] - env[k]) * lerpSpeed;
+            for(let k in tree) tree[k] += (targetTree[k] - tree[k]) * lerpSpeed;
+
+            // 2. 按图层顺序渲染
+            drawEnvironment();
+            drawWaqTreeImage(); // 必须在背景之后绘制，否则会被天空背景覆盖
+            drawGroundAndParticles();
+            
+            // ✅ 渲染树结构
+            drawTreeStructure();
+            drawFallingGirls(); // 最终只落地两个少女：waq_girl_4 与 waq_girl_5
+            
+            // ✅ 互动擦除结尾已移除；最后一个词触发 startEnding()，直接显示结束画面。
+            
+            updateAndDrawBees();
+            
+            // --- ✅ 音效控制：音量低于朗读 ---
+            if (bgm1 && bgm2) { 
+                const bgmVol = 0.12; // 背景音量非常轻 
+                bgm1.volume += (bgmVol - bgm1.volume) * 0.01; 
+                bgm2.volume += (bgmVol - bgm2.volume) * 0.01;
+            }
+            if (rainSound) { 
+                const rainTarget = env.rain * 0.35; // 下雨时才出现 
+                rainSound.volume += (rainTarget - rainSound.volume) * 0.02;
+            }
+
+            animFrameId = requestAnimationFrame(animate); // ✅ 赋值给变量以便清理
+        }
+
+        // ✅ 应用语言设置
+        function applyLanguage(lang){
+            currentLang = lang;
+            buildStory(); // ✅ 用新分段文本
+            experiencedLangs.add(lang); // ✅ 记录体验过的语言
+            document.documentElement.lang = lang;
+            document.documentElement.dir = (lang==="ar") ? "rtl" : "ltr";
+            document.body.style.fontFamily = FONT_MAP[lang];
+            textContainer.style.direction = (lang==="ar") ? "rtl" : "ltr";
+            document.getElementById("hint").innerHTML = UI_TEXTS[lang].hint;
+            // ✅ 语言选择后微调字体
+            textContainer.style.fontSize = (lang==="zh") ? "0.95rem" : (lang==="en") ? "0.97rem" : "1.05rem";
+        }
+
+        // --- ✅ 语言选择启动 ---
+        document.querySelectorAll('#lang-select button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                applyLanguage(btn.dataset.lang);
+                
+                const overlay = document.getElementById('overlay');
+                overlay.style.opacity = 0;
+                
+                // ✅ 启动音频播放（浏览器限制需要用户交互）
+                [ rainSound, bgm1, bgm2 ].forEach(a => { 
+                    if (!a) return; 
+                    a.volume = 0; 
+                    a.play().catch(()=>{}); 
+                });
+                
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    initText();
+                    initSpeech();
+                    animate();
+                }, 1500);
+            });
+        });
+        
+        // ✅ 显示结束层
+        function showEndOverlay(){
+            const overlay = document.getElementById('end-overlay');
+            const options = document.getElementById('end-options');
+            options.innerHTML = '';
+            const labels = { zh: "体验中文", ar: "تجربة العربية", en: "Try English" };
+            ["zh","ar","en"].forEach(l=>{
+                if(!experiencedLangs.has(l)){
+                    const btn = document.createElement("button");
+                    btn.textContent = labels[l];
+                    btn.onclick = ()=> restartWithLanguage(l);
+                    options.appendChild(btn);
+                }
+            });
+            const exitBtn = document.createElement("button");
+            exitBtn.textContent = (currentLang==="zh") ? "放下电脑，去感受春天" : (currentLang==="en") ? "Close and feel the spring" : "اغلق الجهاز واذهب لتشعر بالربيع";
+            exitBtn.onclick = ()=> overlay.innerHTML = "<h2>🌿</h2>";
+            options.appendChild(exitBtn);
+            overlay.style.display = "flex";
+        }
+        
+        // ✅ 重启新语言
+        function restartWithLanguage(lang){
+            // 1. ✅ 停止旧的动画循环，防止多个画面进程重叠导致卡顿
+            if (animFrameId) {
+                cancelAnimationFrame(animFrameId);
+                animFrameId = null;
+            }
+            
+            // 2. ✅ 停止旧的语音识别进程，防止多重监听占用资源
+            if (window.recognition) {
+                window.recognition.onend = null;
+                window.recognition.stop();
+            }
+            
+            // 3. 清空所有状态并重置时间
+            words=[]; wordElements=[]; currentWordIndex=0;
+            particles=[]; mounds=[]; raindrops=[]; bees=[]; petals=[]; butterflies=[]; // ✅ 清空蝴蝶
+            env = {dark:0,rain:0,cloud:0,sun:0,wind:0,wet:0};
+            targetEnv = {...env};
+            tree = {seed:0,sprout:0,trunk:0,leaf:0,flower:0,lemon:0,fall:0,treeFrame:0};
+            targetTree = {...tree};
+            ending=false; endFade=0; endTimer=0;
+            time = 0; // ✅ 【关键】重置时间，防止风向和呼吸动画错乱
+            overlayShown = false;
+            // ✅ 重置魔法擦除互动变量
+            erasedNodes.clear();
+            interactiveEnding = false;
+            hintAlpha = 0;
+            hintPeeled = false; // ✅ 重置提示词剥落状态
+            textContainer.innerHTML = "";
+            textContainer.style.opacity = 1;
+            initBees();
+            applyLanguage(lang);
+            initText();
+            initSpeech();
+            
+            // 4. ✅ 隐藏结束遮罩，并重新启动唯一的动画循环
+            document.getElementById('end-overlay').style.display="none";
+            animate();
+        }
+
+    </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"7939e04a4baf43c8b86a560f74aac60e","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"7939e04a4baf43c8b86a560f74aac60e","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"7939e04a4baf43c8b86a560f74aac60e","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"7939e04a4baf43c8b86a560f74aac60e","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
