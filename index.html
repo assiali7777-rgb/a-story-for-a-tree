@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>三页拼接项目 · 电子绘本合集</title>
+  <style>
+    :root {
+      --bg: #120705;
+      --panel: rgba(255, 240, 200, 0.10);
+      --panel-strong: rgba(255, 240, 200, 0.18);
+      --line: rgba(255, 240, 200, 0.24);
+      --text: #fff0c8;
+      --muted: rgba(255, 240, 200, 0.68);
+      --accent: #ffdca0;
+      --shadow: rgba(0, 0, 0, 0.36);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: "Noto Serif SC", "Songti SC", "PingFang SC", Georgia, serif; overflow: hidden; }
+    body {
+      background:
+        radial-gradient(circle at 18% 10%, rgba(255, 220, 160, .20), transparent 30%),
+        radial-gradient(circle at 82% 88%, rgba(47, 143, 136, .16), transparent 34%),
+        linear-gradient(135deg, #120705, #2b0e08 48%, #071722);
+    }
+    .app { width: 100vw; height: 100vh; padding: clamp(12px, 2vw, 28px); display: grid; grid-template-columns: minmax(260px, 330px) minmax(0, 1fr); gap: clamp(12px, 2vw, 24px); }
+    .sidebar { position: relative; z-index: 2; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(180deg, rgba(255,240,200,.13), rgba(255,255,255,.055)); box-shadow: 0 24px 80px var(--shadow); backdrop-filter: blur(16px); padding: 20px; display: flex; flex-direction: column; min-height: 0; }
+    .brand { display: flex; gap: 12px; align-items: center; margin-bottom: 22px; }
+    .mark { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--line); color: var(--accent); background: rgba(255, 220, 160, .08); font-size: 1.25rem; }
+    h1 { margin: 0; font-size: 1.15rem; line-height: 1.25; letter-spacing: .03em; }
+    .sub { margin: 5px 0 0; color: var(--muted); font-size: .82rem; line-height: 1.45; }
+    .mobile-select { display: none; width: 100%; margin-bottom: 12px; padding: 12px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--text); background: rgba(28, 8, 4, .50); }
+    .story-list { display: grid; gap: 10px; overflow: auto; padding-right: 4px; }
+    .story-card { width: 100%; border: 1px solid rgba(255,240,200,.18); background: rgba(28, 8, 4, .30); color: var(--text); border-radius: 18px; padding: 13px 13px; display: grid; grid-template-columns: 44px 1fr; gap: 12px; align-items: center; text-align: left; cursor: pointer; transition: transform .25s ease, background .25s ease, border-color .25s ease; }
+    .story-card:hover { transform: translateY(-1px); background: rgba(255,240,200,.12); }
+    .story-card.active { background: rgba(255, 220, 160, .18); border-color: rgba(255,220,160,.42); box-shadow: 0 12px 34px rgba(0,0,0,.18); }
+    .num { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; border: 1px solid rgba(255,240,200,.24); color: var(--accent); font-family: Georgia, serif; }
+    .card-copy strong { display: block; font-size: .98rem; line-height: 1.35; }
+    .card-copy small { display: block; margin-top: 4px; color: var(--muted); font-size: .76rem; line-height: 1.35; }
+    .actions { margin-top: auto; padding-top: 16px; display: grid; gap: 10px; }
+    .action-row { display: flex; gap: 10px; }
+    .link-btn { flex: 1; text-align: center; text-decoration: none; border: 1px solid rgba(255,240,200,.22); color: var(--text); border-radius: 999px; padding: 10px 12px; background: rgba(28, 8, 4, .30); font-size: .82rem; transition: .25s ease; }
+    .link-btn:hover { background: var(--text); color: var(--bg); }
+    .note { color: var(--muted); font-size: .75rem; line-height: 1.55; margin: 0; }
+    .stage { position: relative; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: rgba(0,0,0,.24); box-shadow: 0 28px 92px var(--shadow); min-width: 0; }
+    .stage-bar { position: absolute; top: 14px; left: 14px; right: 14px; z-index: 4; display: flex; justify-content: space-between; align-items: center; gap: 12px; pointer-events: none; }
+    .pill { pointer-events: auto; border: 1px solid rgba(255,240,200,.22); border-radius: 999px; padding: 8px 13px; background: rgba(18, 7, 5, .48); backdrop-filter: blur(12px); color: var(--muted); font-size: .78rem; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fullscreen { pointer-events: auto; border: 1px solid rgba(255,240,200,.22); border-radius: 999px; padding: 8px 13px; background: rgba(18, 7, 5, .48); color: var(--text); cursor: pointer; }
+    iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #120705; }
+    @media (max-width: 900px) {
+      body { overflow: auto; }
+      .app { height: auto; min-height: 100vh; grid-template-columns: 1fr; }
+      .sidebar { min-height: auto; }
+      .story-list { display: none; }
+      .mobile-select { display: block; }
+      .stage { height: 70vh; min-height: 560px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="mark">و</div>
+        <div>
+          <h1>三页拼接项目</h1>
+          <p class="sub">统一入口 + 三个原 HTML 页面，可在同一项目中切换预览。</p>
+        </div>
+      </div>
+      <select class="mobile-select" id="mobileSelect" aria-label="选择页面">
+        <option value="phoenix_tree.html">一棵凤凰木</option>
+<option value="waqwaq_tree.html">瓦克瓦克树 · 3D 插画书</option>
+<option value="cross_cultural_mirror.html">跨文化之镜 · 三语融合版电子绘本</option>
+      </select>
+      <div class="story-list" id="storyList">
+        <button class="story-card active" data-src="phoenix_tree.html" data-title="一棵凤凰木" data-desc="阿拉伯庭院中的凤凰木生长叙事">
+          <span class="num">01</span>
+          <span class="card-copy"><strong>一棵凤凰木</strong><small>阿拉伯庭院中的凤凰木生长叙事</small></span>
+        </button>
+<button class="story-card" data-src="waqwaq_tree.html" data-title="瓦克瓦克树 · 3D 插画书" data-desc="瓦克瓦克树神话的 3D 插画书页面">
+          <span class="num">02</span>
+          <span class="card-copy"><strong>瓦克瓦克树 · 3D 插画书</strong><small>瓦克瓦克树神话的 3D 插画书页面</small></span>
+        </button>
+<button class="story-card" data-src="cross_cultural_mirror.html" data-title="跨文化之镜 · 三语融合版电子绘本" data-desc="三语融合版电子绘本总览/融合页">
+          <span class="num">03</span>
+          <span class="card-copy"><strong>跨文化之镜 · 三语融合版电子绘本</strong><small>三语融合版电子绘本总览/融合页</small></span>
+        </button>
+      </div>
+      <div class="actions">
+        <div class="action-row">
+          <a class="link-btn" id="openCurrent" href="phoenix_tree.html" target="_blank" rel="noopener">单独打开</a>
+          <button class="link-btn" id="reloadBtn" type="button">重新载入</button>
+        </div>
+        <p class="note">说明：三个 HTML 已放在同一项目根目录。原页面引用的图片/音频仍需按原相对路径放入项目中。</p>
+      </div>
+    </aside>
+
+    <section class="stage" id="stage">
+      <div class="stage-bar">
+        <div class="pill" id="currentTitle">一棵凤凰木</div>
+        <button class="fullscreen" id="fullscreenBtn" type="button">全屏预览</button>
+      </div>
+      <iframe id="viewer" src="phoenix_tree.html" title="项目页面预览" allow="microphone; autoplay; fullscreen" sandbox="allow-same-origin allow-scripts allow-forms allow-modals allow-popups allow-downloads"></iframe>
+    </section>
+  </main>
+
+  <script>
+    const viewer = document.getElementById('viewer');
+    const currentTitle = document.getElementById('currentTitle');
+    const openCurrent = document.getElementById('openCurrent');
+    const reloadBtn = document.getElementById('reloadBtn');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const cards = Array.from(document.querySelectorAll('.story-card'));
+    const mobileSelect = document.getElementById('mobileSelect');
+
+    function selectPage(src, title, desc) {
+      viewer.src = src;
+      currentTitle.textContent = title + ' · ' + desc;
+      openCurrent.href = src;
+      cards.forEach(card => card.classList.toggle('active', card.dataset.src === src));
+      mobileSelect.value = src;
+      document.documentElement.style.setProperty('--accent', src.includes('waq') ? '#8b9dc3' : src.includes('cross') ? '#ffdca0' : '#ffdca0');
+    }
+
+    cards.forEach(card => {
+      card.addEventListener('click', () => selectPage(card.dataset.src, card.dataset.title, card.dataset.desc));
+    });
+
+    mobileSelect.addEventListener('change', () => {
+      const card = cards.find(c => c.dataset.src === mobileSelect.value);
+      if (card) selectPage(card.dataset.src, card.dataset.title, card.dataset.desc);
+    });
+
+    reloadBtn.addEventListener('click', () => {
+      const src = viewer.getAttribute('src');
+      viewer.src = src;
+    });
+
+    fullscreenBtn.addEventListener('click', async () => {
+      const stage = document.getElementById('stage');
+      if (!document.fullscreenElement) await stage.requestFullscreen();
+      else await document.exitFullscreen();
+    });
+  </script>
+</body>
+</html>
